@@ -4,6 +4,8 @@ import { IVaultService, INotificationService } from './types';
 import secretsRouter from './routes/secrets';
 import vaultRouter from './routes/vault';
 import pairingRouter from './routes/pairing';
+import testRouter from './routes/test';
+import notificationsRouter from './routes/notifications';
 import { createBootstrapRouter } from './routes/bootstrap';
 import { errorHandler } from './middleware/errorHandler';
 import { BootstrapService } from './services/BootstrapService';
@@ -42,7 +44,13 @@ export function createApp({ vaultService, notificationService, bootstrapService 
   // Routes
   app.use('/pairing', pairingRouter);  // Pairing routes (no auth needed for first run)
   app.use('/secrets', secretsRouter);
+  app.use('/notifications', notificationsRouter);
   app.use('/', vaultRouter);
+  
+  // Test routes (development only)
+  if (process.env.NODE_ENV !== 'production') {
+    app.use('/test', testRouter);
+  }
   
   // Bootstrap routes (if service provided)
   if (bootstrapService) {

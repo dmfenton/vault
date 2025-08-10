@@ -1,0 +1,31 @@
+[Unit]
+Description=Vault Server with Phone Approval
+After=network.target
+
+[Service]
+Type=simple
+User=dmfenton
+Group=dmfenton
+WorkingDirectory=/home/dmfenton/vault/server
+Environment="NODE_ENV=development"
+Environment="PORT=3000"
+Environment="WS_PORT=3001"
+Environment="VAULT_DATA_DIR=/home/dmfenton/vault/vault-data"
+
+# Use npx to run tsx without compilation
+ExecStart=/home/dmfenton/.volta/bin/npx tsx /home/dmfenton/vault/server/src/server.ts
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+
+# Security
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
