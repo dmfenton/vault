@@ -1,0 +1,41 @@
+{
+  "name": "vault",
+  "version": "2.0.0",
+  "description": "Secure vault with phone approval system",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "install": "npm install --workspaces",
+    "server:dev": "npm run dev --workspace=server",
+    "server:build": "npm run build --workspace=server",
+    "server:start": "npm start --workspace=server",
+    "server:test": "npm test --workspace=server",
+    "client:android": "cd client && npm run android",
+    "client:ios": "cd client && npm run ios",
+    "client:start": "cd client && npm start",
+    "test": "npm test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dmfenton/vault.git"
+  },
+  "keywords": [
+    "vault",
+    "secrets",
+    "encryption",
+    "security",
+    "phone-approval",
+    "react-native",
+    "typescript"
+  ],
+  "author": "Daniel Fenton <dmfenton@gmail.com>",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

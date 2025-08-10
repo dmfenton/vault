@@ -1,0 +1,89 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Vault data
+vault-data/
+*.key
+*.backup
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Mobile app specific
+# iOS
+client/ios/Pods/
+client/ios/build/
+client/ios/*.xcworkspace/xcuserdata/
+client/ios/*.xcodeproj/xcuserdata/
+client/ios/*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Android
+client/android/.gradle/
+client/android/build/
+client/android/local.properties
+client/android/app/build/
+client/android/.idea/
+*.iml
+*.hprof
+
+# React Native
+client/.bundle/
+client/vendor/bundle/
+client/*.jsbundle
+
+# Metro
+client/.metro-health-check*
+
+# Testing
+jest/
+test-results/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Package manager locks (keep one)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
