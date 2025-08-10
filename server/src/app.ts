@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit';
 import { IVaultService, INotificationService } from './types';
 import secretsRouter from './routes/secrets';
 import vaultRouter from './routes/vault';
+import pairingRouter from './routes/pairing';
 import { createBootstrapRouter } from './routes/bootstrap';
 import { errorHandler } from './middleware/errorHandler';
 import { BootstrapService } from './services/BootstrapService';
@@ -39,6 +40,7 @@ export function createApp({ vaultService, notificationService, bootstrapService 
   app.use('/secrets', limiter);
   
   // Routes
+  app.use('/pairing', pairingRouter);  // Pairing routes (no auth needed for first run)
   app.use('/secrets', secretsRouter);
   app.use('/', vaultRouter);
   

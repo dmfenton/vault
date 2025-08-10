@@ -45,13 +45,67 @@ const App: React.FC = () => {
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  const connect = () => {
+  const connect = async () => {
     if (ws.current?.readyState === WebSocket.OPEN) {
       return;
     }
 
     setConnecting(true);
     
+    try {
+      // First, check pairing status via HTTP
+      const serverBase = config.serverUrl.replace('ws://', 'http://').replace('wss://', 'https://').replace(':3001', ':3000');
+      const statusResponse = await fetch(`${serverBase}/pairing/status`);
+      const status = await statusResponse.json();
+      
+      if (status.firstRun) {
+        // First run - show pairing confirmation
+        Alert.alert(
+          'Initialize Vault',
+          'This appears to be the first time connecting to this vault. Do you want to initialize it and pair this phone?',
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => setConnecting(false) },
+            { 
+              text: 'Initialize & Pair', 
+              onPress: async () => {
+                // Send pairing request
+                const pairResponse = await fetch(`${serverBase}/pairing/connect`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    deviceInfo: {
+                      platform: Platform.OS,
+                      version: '1.0.0',
+                      deviceName: 'Mobile Device'
+                    }
+                  })
+                });
+                
+                const result = await pairResponse.json();
+                if (result.success) {
+                  Alert.alert('Success', result.message);
+                  // Now connect WebSocket
+                  connectWebSocket();
+                } else {
+                  Alert.alert('Error', result.error || 'Failed to pair');
+                  setConnecting(false);
+                }
+              }
+            }
+          ]
+        );
+      } else {
+        // Normal connection
+        connectWebSocket();
+      }
+    } catch (error) {
+      console.error('Failed to check pairing status:', error);
+      // Try to connect anyway
+      connectWebSocket();
+    }
+  };
+  
+  const connectWebSocket = () => {
     try {
       ws.current = new WebSocket(config.serverUrl);
       

@@ -83,10 +83,45 @@ export class VaultService extends EventEmitter implements IVaultService {
   isInitialized(): boolean {
     return this.initialized;
   }
+  
+  /**
+   * Check if this is first run (no master key exists)
+   */
+  isFirstRun(): boolean {
+    return !this.initialized || !this.masterKey;
+  }
+  
+  /**
+   * Initialize vault on first phone pairing
+   */
+  async initializeOnFirstPairing(): Promise<void> {
+    if (!this.isFirstRun()) {
+      throw new Error('Vault already initialized');
+    }
+    
+    console.log('🔐 Initializing vault with new master key...');
+    
+    // Generate and save master key
+    const key = randomBytes(32);
+    this.masterKey = key;
+    
+    const keyPath = path.join(this.config.vaultPath, '.master.key');
+    await fs.mkdir(path.dirname(keyPath), { recursive: true });
+    await fs.writeFile(keyPath, key.toString('hex'), { mode: 0o600 });
+    
+    this.initialized = true;
+    this.secrets = new Map();
+    
+    console.log('✅ Vault initialized successfully');
+    
+    this.emit('vault_initialized', { 
+      message: 'Vault initialized on first pairing' 
+    });
+  }
 
   private ensureInitialized(): void {
     if (!this.initialized || !this.masterKey) {
-      throw new Error('Vault not initialized');
+      throw new Error('Vault not initialized - pair a phone first');
     }
   }
 

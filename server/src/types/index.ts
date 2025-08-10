@@ -192,6 +192,8 @@ export const ApprovalResponseSchema = z.object({
 export interface IVaultService {
   initialize(): Promise<void>;
   isInitialized(): boolean;
+  isFirstRun(): boolean;
+  initializeOnFirstPairing(): Promise<void>;
   
   // Secret operations
   addSecret(key: string, value: string): Promise<void>;
