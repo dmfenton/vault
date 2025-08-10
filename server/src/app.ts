@@ -3,14 +3,17 @@ import rateLimit from 'express-rate-limit';
 import { IVaultService, INotificationService } from './types';
 import secretsRouter from './routes/secrets';
 import vaultRouter from './routes/vault';
+import { createBootstrapRouter } from './routes/bootstrap';
 import { errorHandler } from './middleware/errorHandler';
+import { BootstrapService } from './services/BootstrapService';
 
 export interface AppConfig {
   vaultService: IVaultService;
   notificationService: INotificationService;
+  bootstrapService?: BootstrapService;
 }
 
-export function createApp({ vaultService, notificationService }: AppConfig): Application {
+export function createApp({ vaultService, notificationService, bootstrapService }: AppConfig): Application {
   const app = express();
   
   // Middleware
@@ -38,6 +41,12 @@ export function createApp({ vaultService, notificationService }: AppConfig): App
   // Routes
   app.use('/secrets', secretsRouter);
   app.use('/', vaultRouter);
+  
+  // Bootstrap routes (if service provided)
+  if (bootstrapService) {
+    const bootstrapRouter = createBootstrapRouter(bootstrapService);
+    app.use('/bootstrap', bootstrapRouter);
+  }
   
   // 404 handler
   app.use((req: Request, res: Response) => {

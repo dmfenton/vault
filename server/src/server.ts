@@ -4,15 +4,18 @@ import 'dotenv/config';
 import { createApp } from './app';
 import { VaultService } from './services/VaultService';
 import { NotificationService } from './services/NotificationService';
+import { BootstrapService } from './services/BootstrapService';
 import WebSocket from 'ws';
 import { createServer } from 'http';
 
 async function startServer(): Promise<void> {
   console.log('🔐 Starting Vault Server (TypeScript Edition)...');
   
+  const dataDir = process.env.VAULT_DATA_DIR || './vault-data';
+  
   // Initialize services
   const vaultService = new VaultService({
-    vaultPath: process.env.VAULT_PATH || '/etc/vault',
+    vaultPath: dataDir,
     autoSave: true
   });
   
@@ -21,10 +24,22 @@ async function startServer(): Promise<void> {
     serverUrl: process.env.SERVER_URL || 'http://localhost:3000'
   });
   
-  // Initialize vault
+  const bootstrapService = new BootstrapService(dataDir);
+  
+  // Initialize vault and bootstrap
   console.log('📁 Initializing vault...');
   await vaultService.initialize();
+  await bootstrapService.initialize();
   console.log(`✅ Vault initialized with ${vaultService.getSecretCount()} secrets`);
+  
+  // Check if this is first run
+  if (vaultService.getSecretCount() === 0 && !notificationService.isConnected()) {
+    console.log('\n⚠️  First run detected! No phone connected.');
+    console.log('Run one of the following:');
+    console.log('  1. vault-cli init     - Complete initialization with recovery codes');
+    console.log('  2. vault-cli bootstrap - Generate pairing token for phone');
+    console.log('  3. vault-cli unlock   - Use startup token if you have one\n');
+  }
   
   // Setup WebSocket server for phone connections
   const wsPort = parseInt(process.env.WS_PORT || '3001');
@@ -58,7 +73,7 @@ async function startServer(): Promise<void> {
   await notificationService.connect();
   
   // Create Express app
-  const app = createApp({ vaultService, notificationService });
+  const app = createApp({ vaultService, notificationService, bootstrapService });
   
   // Start HTTP server
   const port = parseInt(process.env.PORT || '3000');
