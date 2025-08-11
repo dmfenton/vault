@@ -34,7 +34,7 @@ const App: React.FC = () => {
   const [connecting, setConnecting] = useState(false);
   const [request, setRequest] = useState<ApprovalRequest | null>(null);
   const [config, setConfig] = useState<Config>({
-    serverUrl: 'ws://192.168.4.65:3001',  // Your server IP
+    serverUrl: 'ws://192.168.4.40:3001',  // Your server IP
     autoReconnect: true,
     vibrate: true,
   });

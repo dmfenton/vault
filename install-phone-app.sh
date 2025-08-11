@@ -17,8 +17,14 @@ echo -e "${BLUE}         VAULT PHONE APP INSTALLER${NC}"
 echo -e "${BLUE}════════════════════════════════════════════════${NC}"
 echo ""
 
-# Get server IP
-SERVER_IP=$(hostname -I | awk '{print $1}')
+# Get server IP (cross-platform)
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS
+    SERVER_IP=$(ifconfig | grep "inet " | grep -v 127.0.0.1 | head -1 | awk '{print $2}')
+else
+    # Linux
+    SERVER_IP=$(hostname -I | awk '{print $1}')
+fi
 echo -e "${GREEN}✓${NC} Server IP: ${SERVER_IP}"
 echo ""
 
@@ -33,12 +39,19 @@ check_command() {
     fi
 }
 
-# Navigate to client directory
-cd /home/dmfenton/vault/client
+# Navigate to client directory (relative path)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}/client"
 
 # Update app with server IP
 echo -e "${BLUE}Configuring app with server IP...${NC}"
-sed -i "s|ws://[0-9.]*:3001|ws://${SERVER_IP}:3001|g" App.tsx
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS requires backup extension with -i
+    sed -i '' "s|ws://[0-9.]*:3001|ws://${SERVER_IP}:3001|g" App.tsx
+else
+    # Linux
+    sed -i "s|ws://[0-9.]*:3001|ws://${SERVER_IP}:3001|g" App.tsx
+fi
 echo -e "${GREEN}✓${NC} App configured for ${SERVER_IP}"
 echo ""
 
@@ -217,6 +230,6 @@ echo "  1. Run: npx react-native run-ios"
 echo "  2. Uses iOS Simulator automatically"
 echo ""
 echo -e "${BLUE}Manual installation:${NC}"
-echo "  cd /home/dmfenton/vault/client"
+echo "  cd ${SCRIPT_DIR}/client"
 echo "  npx react-native run-android  # For Android"
 echo "  npx react-native run-ios      # For iOS"
