@@ -2,6 +2,8 @@
 
 A secure vault system that requires phone approval for accessing encrypted secrets. Features AES-256-GCM encryption, WebSocket real-time communication, and a React Native mobile app for approvals.
 
+Built by [Daniel Fenton](https://dmfenton.net). More projects and writing at [dmfenton.net](https://dmfenton.net).
+
 ## 🏗️ Architecture
 
 ```
