@@ -68,8 +68,20 @@ export interface ApprovalStatus {
   approved: boolean;
   expiresAt: number | null;
   oneTime: boolean;
+  /**
+   * When set, the approval only authorizes access to this specific secret key.
+   * When null/undefined the approval is unscoped (authorizes any secret).
+   */
+  secretKey?: string | null;
   grantedAt?: Date;
   grantedBy?: string;
+}
+
+export interface GrantApprovalOptions {
+  duration?: number;
+  oneTime?: boolean;
+  /** Scope the approval to a single secret key. */
+  secretKey?: string;
 }
 
 // ============= Audit Types =============
@@ -127,6 +139,19 @@ export interface NotificationMessage {
   timestamp: Date;
   metadata?: Record<string, unknown>;
   requestId?: string;
+  /**
+   * Structured approval request payload consumed by the mobile client.
+   * The client renders `message.request` directly.
+   */
+  request?: {
+    id: string;
+    type: ApprovalType;
+    secretKey?: string;
+    hostname: string;
+    ipAddress?: string;
+    timestamp: string;
+    metadata?: Record<string, unknown>;
+  };
   nonce?: string;
   signature?: string;
 }
@@ -205,9 +230,9 @@ export interface IVaultService {
   getSecretMetadata(key: string): SecretMetadata | null;
   
   // Approval management
-  grantApproval(options: { duration?: number; oneTime?: boolean }): void;
+  grantApproval(options: GrantApprovalOptions): void;
   revokeApproval(): void;
-  isApproved(): boolean;
+  isApproved(secretKey?: string): boolean;
   getApprovalStatus(): ApprovalStatus;
   
   // Key management
@@ -252,14 +277,4 @@ export interface INotificationService {
   disableRateLimit(): void;
 }
 
-// ============= Express Extensions =============
-
-declare global {
-  namespace Express {
-    interface Request {
-      vaultService?: IVaultService;
-      notificationService?: INotificationService;
-      auditEntry?: Partial<AuditEntry>;
-    }
-  }
-}
+// Express Request augmentation lives in ./express.d.ts

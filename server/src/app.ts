@@ -8,27 +8,43 @@ import testRouter from './routes/test';
 import notificationsRouter from './routes/notifications';
 import { createBootstrapRouter } from './routes/bootstrap';
 import { errorHandler } from './middleware/errorHandler';
+import { createAuthMiddleware } from './middleware/auth';
 import { BootstrapService } from './services/BootstrapService';
+import { PushNotificationService } from './services/PushNotificationService';
 
 export interface AppConfig {
   vaultService: IVaultService;
   notificationService: INotificationService;
   bootstrapService?: BootstrapService;
+  pushService?: PushNotificationService;
+  /** Bearer token required for all sensitive HTTP endpoints. */
+  apiToken: string;
 }
 
-export function createApp({ vaultService, notificationService, bootstrapService }: AppConfig): Application {
+export function createApp({
+  vaultService,
+  notificationService,
+  bootstrapService,
+  pushService,
+  apiToken
+}: AppConfig): Application {
   const app = express();
-  
+
+  // Trust the first proxy hop so req.ip reflects the real client when behind a
+  // reverse proxy/load balancer (also makes rate limiting per-client correct).
+  app.set('trust proxy', 1);
+
   // Middleware
   app.use(express.json({ limit: '1mb' }));
-  
+
   // Attach services to request
   app.use((req: Request, _res: Response, next: NextFunction) => {
     req.vaultService = vaultService;
     req.notificationService = notificationService;
+    req.pushService = pushService;
     next();
   });
-  
+
   // Rate limiting
   const limiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
@@ -37,21 +53,35 @@ export function createApp({ vaultService, notificationService, bootstrapService 
     standardHeaders: true,
     legacyHeaders: false,
   });
-  
-  // Apply rate limiting to /secrets routes
-  app.use('/secrets', limiter);
-  
-  // Routes
-  app.use('/pairing', pairingRouter);  // Pairing routes (no auth needed for first run)
-  app.use('/secrets', secretsRouter);
-  app.use('/notifications', notificationsRouter);
-  app.use('/', vaultRouter);
-  
-  // Test routes (development only)
-  if (process.env.NODE_ENV !== 'production') {
-    app.use('/test', testRouter);
+
+  // Authentication for sensitive endpoints
+  const requireAuth = createAuthMiddleware(apiToken);
+
+  // Global rate limiting (defence-in-depth against brute force / abuse)
+  app.use(limiter);
+
+  // Public routes (no API token):
+  //  - /health is needed by monitoring before any token is provisioned
+  //  - /pairing and /bootstrap are the first-run / recovery flows and are
+  //    gated by their own one-time tokens instead of the API token.
+  app.use('/pairing', pairingRouter);
+
+  // Protected routes (require API token)
+  app.use('/secrets', requireAuth, secretsRouter);
+  app.use('/notifications', requireAuth, notificationsRouter);
+  app.use('/rotate-key', requireAuth);
+  app.use('/lock', requireAuth);
+  app.use('/audit', requireAuth);
+  app.use('/export', requireAuth);
+  app.use('/', vaultRouter); // exposes public /health plus the protected paths above
+
+  // Test routes: disabled by default. Require an explicit opt-in AND a
+  // non-production environment so the approval bypass can never be reached
+  // accidentally in a real deployment.
+  if (process.env.NODE_ENV !== 'production' && process.env.ENABLE_TEST_ROUTES === 'true') {
+    app.use('/test', requireAuth, testRouter);
   }
-  
+
   // Bootstrap routes (if service provided)
   if (bootstrapService) {
     const bootstrapRouter = createBootstrapRouter(bootstrapService);

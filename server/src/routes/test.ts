@@ -95,7 +95,7 @@ router.post('/simulate-phone', async (req: Request, res: Response, next: NextFun
   
   try {
     // Mark notification service as connected
-    (req.notificationService as any).connected = true;
+    (req.notificationService as unknown as { connected: boolean }).connected = true;
     
     res.json({
       success: true,

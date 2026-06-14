@@ -145,6 +145,33 @@ describe('VaultService', () => {
         .rejects.toThrow('Approval required');
     });
 
+    test('should scope approval to a single secret', async () => {
+      await vaultService.addSecret('secret_a', 'value_a');
+      await vaultService.addSecret('secret_b', 'value_b');
+
+      // Approve access to secret_a only
+      vaultService.grantApproval({ duration: 3600, secretKey: 'secret_a' });
+
+      // secret_a is accessible
+      expect(await vaultService.getSecret('secret_a')).toBe('value_a');
+      expect(vaultService.isApproved('secret_a')).toBe(true);
+
+      // secret_b is NOT accessible under a scoped approval
+      expect(vaultService.isApproved('secret_b')).toBe(false);
+      await expect(vaultService.getSecret('secret_b'))
+        .rejects.toThrow('Approval required');
+    });
+
+    test('unscoped approval authorizes any secret', async () => {
+      await vaultService.addSecret('secret_a', 'value_a');
+      await vaultService.addSecret('secret_b', 'value_b');
+
+      vaultService.grantApproval({ duration: 3600 });
+
+      expect(vaultService.isApproved('secret_a')).toBe(true);
+      expect(vaultService.isApproved('secret_b')).toBe(true);
+    });
+
     test('should clear cache on revoke', async () => {
       await vaultService.addSecret('secret', 'value');
       

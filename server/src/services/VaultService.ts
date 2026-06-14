@@ -11,6 +11,7 @@ import {
   AuditEventType,
   AuditFilter,
   IVaultService,
+  GrantApprovalOptions,
   SecretKeySchema,
   SecretValueSchema
 } from '../types';
@@ -100,14 +101,19 @@ export class VaultService extends EventEmitter implements IVaultService {
     }
     
     console.log('🔐 Initializing vault with new master key...');
-    
-    // Generate and save master key
-    const key = randomBytes(32);
+
+    // Generate and save master key (same path used by initialize()/rotateKey())
+    const key = crypto.randomBytes(32);
     this.masterKey = key;
-    
-    const keyPath = path.join(this.config.vaultPath, '.master.key');
+
+    const keyPath = path.join(this.config.vaultPath, 'master.key');
     await fs.mkdir(path.dirname(keyPath), { recursive: true });
     await fs.writeFile(keyPath, key.toString('hex'), { mode: 0o600 });
+
+    if (process.platform !== 'win32') {
+      const fsSync = await import('fs');
+      fsSync.chmodSync(keyPath, 0o600);
+    }
     
     this.initialized = true;
     this.secrets = new Map();
@@ -160,19 +166,19 @@ export class VaultService extends EventEmitter implements IVaultService {
 
   async getSecret(key: string): Promise<string> {
     this.ensureInitialized();
-    
-    if (!this.isApproved()) {
+
+    const validatedKey = SecretKeySchema.parse(key);
+
+    if (!this.isApproved(validatedKey)) {
       this.logAudit({
         event: AuditEventType.ACCESS_DENIED,
-        key,
+        key: validatedKey,
         success: false,
         reason: 'Approval required'
       });
       throw new Error('Approval required');
     }
-    
-    const validatedKey = SecretKeySchema.parse(key);
-    
+
     if (!this.secrets.has(validatedKey)) {
       this.logAudit({
         event: AuditEventType.ACCESS_DENIED,
@@ -300,18 +306,21 @@ export class VaultService extends EventEmitter implements IVaultService {
     };
   }
 
-  grantApproval(options: { duration?: number; oneTime?: boolean } = {}): void {
+  grantApproval(options: GrantApprovalOptions = {}): void {
     // Clear existing timer
     if (this.approvalTimer) {
       clearTimeout(this.approvalTimer);
       this.approvalTimer = undefined;
     }
-    
+
+    const secretKey = options.secretKey ?? null;
+
     if (options.oneTime) {
       this.approvalStatus = {
         approved: true,
         oneTime: true,
         expiresAt: null,
+        secretKey,
         grantedAt: new Date()
       };
     } else if (options.duration) {
@@ -320,21 +329,22 @@ export class VaultService extends EventEmitter implements IVaultService {
         approved: true,
         oneTime: false,
         expiresAt,
+        secretKey,
         grantedAt: new Date()
       };
-      
+
       // Set timer to revoke approval
       this.approvalTimer = setTimeout(() => {
         this.revokeApproval();
       }, options.duration * 1000);
     }
-    
+
     this.logAudit({
       event: AuditEventType.VAULT_UNLOCKED,
       success: true,
-      metadata: { duration: options.duration, oneTime: options.oneTime }
+      metadata: { duration: options.duration, oneTime: options.oneTime, secretKey }
     });
-    
+
     this.emit('approval_granted', this.approvalStatus);
   }
 
@@ -347,9 +357,10 @@ export class VaultService extends EventEmitter implements IVaultService {
     this.approvalStatus = {
       approved: false,
       expiresAt: null,
-      oneTime: false
+      oneTime: false,
+      secretKey: null
     };
-    
+
     // Clear decrypted cache for security
     this.decryptedCache.clear();
     
@@ -361,16 +372,21 @@ export class VaultService extends EventEmitter implements IVaultService {
     this.emit('approval_revoked');
   }
 
-  isApproved(): boolean {
+  isApproved(secretKey?: string): boolean {
     if (!this.approvalStatus.approved) {
       return false;
     }
-    
+
     if (this.approvalStatus.expiresAt && Date.now() > this.approvalStatus.expiresAt) {
       this.revokeApproval();
       return false;
     }
-    
+
+    // Scoped approvals only authorize the specific secret they were granted for.
+    if (this.approvalStatus.secretKey) {
+      return secretKey === this.approvalStatus.secretKey;
+    }
+
     return true;
   }
 

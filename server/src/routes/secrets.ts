@@ -57,8 +57,8 @@ router.get('/:key',
         throw new NotFoundError('Secret not found');
       }
       
-      // Check if already approved
-      if (!req.vaultService!.isApproved()) {
+      // Check if already approved for THIS specific secret
+      if (!req.vaultService!.isApproved(key)) {
         // Request approval
         const approval = await req.notificationService!.requestApproval({
           type: ApprovalType.SECRET_ACCESS,
@@ -70,20 +70,20 @@ router.get('/:key',
             timestamp: new Date().toISOString()
           }
         });
-        
+
         if (!approval.approved) {
-          res.status(403).json({ 
+          res.status(403).json({
             error: 'Access denied by user',
-            reason: approval.reason 
+            reason: approval.reason
           });
           return;
         }
-        
-        // Grant approval to vault
+
+        // Grant approval to the vault, scoped to the approved secret only.
         if (approval.oneTime) {
-          req.vaultService!.grantApproval({ oneTime: true });
+          req.vaultService!.grantApproval({ oneTime: true, secretKey: key });
         } else {
-          req.vaultService!.grantApproval({ duration: approval.duration });
+          req.vaultService!.grantApproval({ duration: approval.duration, secretKey: key });
         }
       }
       

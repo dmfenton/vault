@@ -18,6 +18,23 @@ interface PendingRequest {
   timer: NodeJS.Timeout;
 }
 
+/** Loosely-typed inbound message from the WebSocket (phone). */
+interface IncomingMessage {
+  type?: string;
+  nonce?: string;
+  timestamp?: string | number | Date;
+  signature?: string;
+  requestId?: string;
+  [key: string]: unknown;
+}
+
+/** Outbound message; body may be stripped when an encrypted variant is sent. */
+type OutgoingMessage = Omit<NotificationMessage, 'body'> & {
+  body?: string;
+  encrypted?: string;
+  signature?: string;
+};
+
 interface RateLimitConfig {
   enabled: boolean;
   max: number;
@@ -142,6 +159,16 @@ export class NotificationService extends EventEmitter implements INotificationSe
       body: this.getApprovalBody(fullRequest),
       timestamp: new Date(),
       requestId: fullRequest.id,
+      // Structured payload the mobile client renders directly (message.request).
+      request: {
+        id: fullRequest.id,
+        type: fullRequest.type,
+        secretKey: fullRequest.secretKey,
+        hostname: fullRequest.hostname,
+        ipAddress: fullRequest.ipAddress,
+        timestamp: fullRequest.requestedAt.toISOString(),
+        metadata: fullRequest.metadata
+      },
       metadata: fullRequest.metadata
     };
     
@@ -282,7 +309,7 @@ export class NotificationService extends EventEmitter implements INotificationSe
     });
   }
 
-  private handleMessage(message: any): void {
+  private handleMessage(message: IncomingMessage): void {
     try {
       // Validate signature if enabled
       if (this.sharedSecret && !this.validateSignature(message)) {
@@ -310,7 +337,7 @@ export class NotificationService extends EventEmitter implements INotificationSe
       // Handle different message types
       switch (message.type) {
         case NotificationType.APPROVAL_RESPONSE:
-          this.handleApprovalResponse(message);
+          this.handleApprovalResponse(message as unknown as ApprovalResponse & { requestId: string });
           break;
         
         default:
@@ -348,7 +375,7 @@ export class NotificationService extends EventEmitter implements INotificationSe
 
   private async sendMessage(message: NotificationMessage): Promise<void> {
     // Apply encryption if enabled
-    let processedMessage: any = message;
+    let processedMessage: OutgoingMessage = message;
     if (this.encryptionKey && message.body) {
       processedMessage = {
         ...message,
@@ -453,7 +480,7 @@ export class NotificationService extends EventEmitter implements INotificationSe
     return Buffer.concat([iv, authTag, encrypted]).toString('base64');
   }
 
-  private sign(data: any): string {
+  private sign(data: unknown): string {
     if (!this.sharedSecret) return '';
     
     return crypto
@@ -462,15 +489,21 @@ export class NotificationService extends EventEmitter implements INotificationSe
       .digest('hex');
   }
 
-  private validateSignature(message: any): boolean {
+  private validateSignature(message: IncomingMessage): boolean {
     if (!this.sharedSecret || !message.signature) return false;
-    
+
     const { signature, ...data } = message;
     const expectedSignature = this.sign(data);
-    
-    return crypto.timingSafeEqual(
-      Buffer.from(signature),
-      Buffer.from(expectedSignature)
-    );
+
+    const provided = Buffer.from(String(signature));
+    const expected = Buffer.from(expectedSignature);
+
+    // timingSafeEqual throws on length mismatch; guard first so a malformed
+    // signature is a clean rejection rather than an exception.
+    if (provided.length !== expected.length) {
+      return false;
+    }
+
+    return crypto.timingSafeEqual(provided, expected);
   }
 }

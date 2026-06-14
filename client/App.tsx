@@ -25,6 +25,7 @@ interface ApprovalRequest {
 
 interface Config {
   serverUrl: string;
+  authToken: string;
   autoReconnect: boolean;
   vibrate: boolean;
 }
@@ -35,6 +36,7 @@ const App: React.FC = () => {
   const [request, setRequest] = useState<ApprovalRequest | null>(null);
   const [config, setConfig] = useState<Config>({
     serverUrl: 'ws://192.168.4.40:3001',  // Your server IP
+    authToken: '',  // Bearer/API token printed by the server on first run
     autoReconnect: true,
     vibrate: true,
   });
@@ -107,7 +109,13 @@ const App: React.FC = () => {
   
   const connectWebSocket = () => {
     try {
-      ws.current = new WebSocket(config.serverUrl);
+      // The server requires the API token as a query parameter; without a valid
+      // token the connection is rejected (close code 4401).
+      const separator = config.serverUrl.includes('?') ? '&' : '?';
+      const url = config.authToken
+        ? `${config.serverUrl}${separator}token=${encodeURIComponent(config.authToken)}`
+        : config.serverUrl;
+      ws.current = new WebSocket(url);
       
       ws.current.onopen = () => {
         console.log('Connected to vault server');
@@ -273,7 +281,23 @@ const App: React.FC = () => {
               WebSocket URL of your vault server
             </Text>
           </View>
-          
+
+          <View style={styles.settingGroup}>
+            <Text style={styles.settingLabel}>API Token</Text>
+            <TextInput
+              style={styles.input}
+              value={config.authToken}
+              onChangeText={(text) => setConfig({...config, authToken: text})}
+              placeholder="Paste the server's API token"
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+            />
+            <Text style={styles.settingHint}>
+              Printed by the server on first run (or set via VAULT_API_TOKEN)
+            </Text>
+          </View>
+
           <View style={styles.settingGroup}>
             <View style={styles.switchRow}>
               <Text style={styles.settingLabel}>Auto-Reconnect</Text>

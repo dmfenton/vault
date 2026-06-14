@@ -10,7 +10,8 @@
     "build": "tsc",
     "dev": "tsx watch src/server.ts",
     "start": "node dist/server.js",
-    "test": "jest --coverage --watchAll",
+    "test": "jest --coverage",
+    "test:watch": "jest --coverage --watchAll",
     "test:once": "jest --coverage",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
@@ -22,7 +23,6 @@
     "express-rate-limit": "^7.1.5",
     "ws": "^8.14.2",
     "dotenv": "^16.3.1",
-    "axios": "^1.6.2",
     "winston": "^3.11.0",
     "zod": "^3.22.4",
     "node-fetch": "^3.3.2"
