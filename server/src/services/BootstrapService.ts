@@ -8,7 +8,7 @@ export interface BootstrapToken {
   expiresAt: Date;
   used: boolean;
   type: 'pairing' | 'recovery' | 'startup';
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export class BootstrapService {

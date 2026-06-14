@@ -16,6 +16,13 @@ export interface DeviceRegistration {
   registeredAt: Date;
 }
 
+export interface PushPayload {
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+  priority?: 'high' | 'normal';
+}
+
 export class PushNotificationService extends EventEmitter {
   private devices: Map<string, DeviceRegistration> = new Map();
   
@@ -38,15 +45,10 @@ export class PushNotificationService extends EventEmitter {
   /**
    * Send push notification to all registered devices
    */
-  async sendPushNotification(notification: {
-    title: string;
-    body: string;
-    data?: Record<string, any>;
-    priority?: 'high' | 'normal';
-  }): Promise<void> {
+  async sendPushNotification(notification: PushPayload): Promise<void> {
     const promises: Promise<void>[] = [];
     
-    for (const [deviceId, device] of this.devices) {
+    for (const device of this.devices.values()) {
       promises.push(this.sendToDevice(device, notification));
     }
     
@@ -58,7 +60,7 @@ export class PushNotificationService extends EventEmitter {
    */
   private async sendToDevice(
     device: DeviceRegistration,
-    notification: any
+    notification: PushPayload
   ): Promise<void> {
     try {
       switch (device.platform) {
@@ -83,7 +85,7 @@ export class PushNotificationService extends EventEmitter {
   /**
    * Send via Firebase Cloud Messaging (Android)
    */
-  private async sendFCM(device: DeviceRegistration, notification: any): Promise<void> {
+  private async sendFCM(device: DeviceRegistration, notification: PushPayload): Promise<void> {
     if (!device.pushToken) {
       throw new Error('No FCM token for device');
     }
@@ -121,7 +123,7 @@ export class PushNotificationService extends EventEmitter {
   /**
    * Send via Apple Push Notification service (iOS)
    */
-  private async sendAPNs(device: DeviceRegistration, notification: any): Promise<void> {
+  private async sendAPNs(device: DeviceRegistration, notification: PushPayload): Promise<void> {
     if (!device.pushToken) {
       throw new Error('No APNs token for device');
     }
@@ -136,7 +138,7 @@ export class PushNotificationService extends EventEmitter {
   /**
    * Send via Web Push API
    */
-  private async sendWebPush(device: DeviceRegistration, notification: any): Promise<void> {
+  private async sendWebPush(device: DeviceRegistration, notification: PushPayload): Promise<void> {
     if (!device.subscription) {
       throw new Error('No web push subscription for device');
     }
@@ -170,7 +172,10 @@ export class PushNotificationService extends EventEmitter {
       data: {
         type: 'approval_request',
         requestId: request.id,
-        ...request
+        requestType: request.type,
+        secretKey: request.secretKey,
+        hostname: request.hostname,
+        ipAddress: request.ipAddress
       },
       priority: 'high'
     });

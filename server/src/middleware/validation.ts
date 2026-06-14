@@ -15,7 +15,7 @@ export function validateBody<T>(schema: ZodSchema<T>) {
 export function validateQuery<T>(schema: ZodSchema<T>) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     try {
-      req.query = schema.parse(req.query) as any;
+      req.query = schema.parse(req.query) as unknown as typeof req.query;
       next();
     } catch (error) {
       next(error);
@@ -26,7 +26,7 @@ export function validateQuery<T>(schema: ZodSchema<T>) {
 export function validateParams<T>(schema: ZodSchema<T>) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     try {
-      req.params = schema.parse(req.params) as any;
+      req.params = schema.parse(req.params) as unknown as typeof req.params;
       next();
     } catch (error) {
       next(error);

@@ -95,7 +95,7 @@ export function errorHandler(
   }
 
   // Handle payload too large
-  if ((err as any).type === 'entity.too.large') {
+  if ((err as { type?: string }).type === 'entity.too.large') {
     const error: ApiError = {
       error: 'Payload too large',
       code: 'PAYLOAD_TOO_LARGE'

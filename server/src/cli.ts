@@ -83,8 +83,8 @@ program
         body: JSON.stringify({ token })
       });
       
-      const result = await response.json();
-      
+      const result = await response.json() as { message?: string; note?: string; error?: string; warning?: string };
+
       if (response.ok) {
         console.log('✅', result.message);
         console.log(`⏱️  ${result.note}`);
@@ -127,8 +127,8 @@ program
         body: JSON.stringify({ token: code })
       });
       
-      const result = await response.json();
-      
+      const result = await response.json() as { message?: string; note?: string; error?: string; warning?: string };
+
       if (response.ok) {
         console.log('✅', result.message);
         console.log('⚠️ ', result.warning);
@@ -153,7 +153,7 @@ program
   .action(async (options) => {
     try {
       const response = await fetch(`${options.server}/health`);
-      const status = await response.json();
+      const status = await response.json() as { status: string; vault: { initialized: boolean; secretCount: number; approved: boolean; approvalStatus?: { expiresAt?: string } }; notification: { connected: boolean } };
       
       console.log('🔐 Vault Status\n');
       console.log(`Status: ${status.status === 'healthy' ? '✅ Healthy' : '❌ Unhealthy'}`);
@@ -200,7 +200,7 @@ program
     console.log('\n🔑 Generating initial access tokens...\n');
     
     const { token: startupToken } = await bootstrapService.generateStartupToken();
-    const recoveryCodes = await bootstrapService.generateRecoveryCodes();
+    await bootstrapService.generateRecoveryCodes();
     
     // Save initialization info
     const initInfo = {

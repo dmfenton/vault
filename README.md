@@ -102,6 +102,7 @@ npm run client:android
 
 ```bash
 curl -X POST http://localhost:3000/secrets \
+  -H "Authorization: Bearer $VAULT_API_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"key": "API_KEY", "value": "secret123"}'
 ```
@@ -109,7 +110,8 @@ curl -X POST http://localhost:3000/secrets \
 ### Retrieving a Secret (Requires Phone Approval)
 
 ```bash
-curl http://localhost:3000/secrets/API_KEY
+curl http://localhost:3000/secrets/API_KEY \
+  -H "Authorization: Bearer $VAULT_API_TOKEN"
 ```
 
 1. Request appears on phone
@@ -129,6 +131,9 @@ Requires phone approval. All secrets are re-encrypted with new key.
 
 ## 🔒 Security Features
 
+- **API authentication**: All sensitive endpoints require a bearer token (`Authorization: Bearer <token>`). The token is taken from `VAULT_API_TOKEN`, or generated and persisted to `<VAULT_DATA_DIR>/api-token` (mode `0600`) on first run.
+- **Authenticated WebSocket**: The phone must present the same token (`ws://host:3001/?token=<token>`); unauthenticated sockets are rejected before any message is processed, so an attacker cannot approve their own requests.
+- **Scoped approvals**: An approval only unlocks the specific secret it was granted for — approving `A` does not grant access to `B`.
 - **Encryption**: AES-256-GCM with authentication tags
 - **Key Storage**: Master key stored with 0600 permissions
 - **Validation**: Zod schemas for all inputs
@@ -136,6 +141,9 @@ Requires phone approval. All secrets are re-encrypted with new key.
 - **Audit Trail**: All operations logged with timestamps
 - **Rate Limiting**: 100 requests per minute per IP
 - **Approval Expiry**: Time-limited and one-time approvals
+- **Test routes off by default**: The approval-bypass `/test/*` routes require `ENABLE_TEST_ROUTES=true` and a non-production `NODE_ENV`.
+
+> **Note:** Authentication tokens and secrets travel in cleartext over plain HTTP/WS. Terminate TLS in front of the server (e.g. a reverse proxy) for any non-localhost deployment.
 
 ## 📁 Project Structure
 
@@ -231,18 +239,21 @@ Access settings in-app via the ⚙️ icon:
 
 ### Endpoints
 
-| Method | Endpoint | Description | Requires Approval |
-|--------|----------|-------------|-------------------|
-| GET | `/health` | Health check | No |
-| GET | `/secrets` | List all secret keys | No |
-| POST | `/secrets` | Add new secret | No |
-| GET | `/secrets/:key` | Get secret value | **Yes** |
-| PUT | `/secrets/:key` | Update secret | No |
-| DELETE | `/secrets/:key` | Delete secret | No |
-| POST | `/rotate-key` | Rotate encryption key | **Yes** |
-| POST | `/lock` | Lock vault immediately | No |
-| GET | `/audit` | Get audit log | No |
-| POST | `/export` | Export vault metadata | **Yes** |
+All endpoints except `/health`, `/pairing/*` and `/bootstrap/*` require the
+`Authorization: Bearer <token>` header.
+
+| Method | Endpoint | Description | Auth token | Phone approval |
+|--------|----------|-------------|------------|----------------|
+| GET | `/health` | Health check | No | No |
+| GET | `/secrets` | List all secret keys | **Yes** | No |
+| POST | `/secrets` | Add new secret | **Yes** | No |
+| GET | `/secrets/:key` | Get secret value | **Yes** | **Yes** |
+| PUT | `/secrets/:key` | Update secret | **Yes** | No |
+| DELETE | `/secrets/:key` | Delete secret | **Yes** | No |
+| POST | `/rotate-key` | Rotate encryption key | **Yes** | **Yes** |
+| POST | `/lock` | Lock vault immediately | **Yes** | No |
+| GET | `/audit` | Get audit log | **Yes** | No |
+| POST | `/export` | Export vault metadata | **Yes** | **Yes** |
 
 ## 🤝 Contributing
 
